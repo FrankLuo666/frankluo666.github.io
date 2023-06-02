@@ -66,6 +66,64 @@ public class CobolParser {
 - `matcher.group(1)` 返回与第一个捕获组（即 `(\\S+)`）匹配的字符串，即MOVE语句的源变量。
 - `matcher.group(2)` 返回与第二个捕获组（即 `(\\S+)`）匹配的字符串，即MOVE语句的目标变量。
 
+<br>
+
+---
+
+如果在此基础上，还**需要将每个变量的定义也打印出来**， 比如：
+
+```java
+# 在java中定义变量：
+String exist_error;
+String flag_ON;
+```
+
+可以将变量保存在List中再遍历出来， 修改后的代码如下：
+
+```java
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class CobolParser {
+    public static void main(String[] args) {
+        String cobolCode = "333000         MOVE  exist_error  TO check_result\n"
+                         + "333100         MOVE  flag_ON        TO loop_flag";
+
+        // 使用正则表达式匹配COBOL代码中的MOVE TO语句
+        Pattern pattern = Pattern.compile("MOVE\\s+(\\S+)\\s+TO\\s+(\\S+)");
+        Matcher matcher = pattern.matcher(cobolCode);
+				
+      	LinkedHashSet<String> variableSet = new LinkedHashSet<>();
+      
+        // 遍历匹配结果并生成对应的Java代码
+        while (matcher.find()) {
+            String sourceVariable = matcher.group(1);
+            String targetVariable = matcher.group(2);
+						
+          	// 将变量加入list
+          	// 如有全局变量不需要定义的，在这儿加一个判断：!sourceVariable.startsWith()
+          	variableSet.add(sourceVariable);
+            variableSet.add(targetVariable);
+          
+            String javaCode = targetVariable + " = " + sourceVariable + ";";
+            System.out.println(javaCode);
+        }
+      
+      	System.out.println("// 定义变量：");
+      	for (String variable : variableSet) {
+          	// 添加注释
+          	String comment = "//" + variable;
+            System.out.println(comment);
+          	// 定义变量
+          	String variableDefinition = "String " + variable + ";";
+          	System.out.println(variableDefinition);
+        }
+    }
+}
+```
+
 
 
 #### ② pattern2，move to 语句不在同一行:
@@ -136,11 +194,11 @@ String exist_error;
 String flag_ON;
 ```
 
-可以将变量保存在TreeSet中再遍历出来， 修改后的代码如下：
+可以将变量保存在List中再遍历出来， 修改后的代码如下：
 
 ```java
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -158,7 +216,7 @@ public class CobolParser {
         String sourceVariable = null;
         String targetVariable = null;
 
-      	TreeSet<String> variableSet = new TreeSet<>();
+      	List<String> variableList = new ArrayList<>();
 
         // 遍历COBOL代码的每一行
         String[] lines = cobolCode.split("\n");
@@ -170,7 +228,7 @@ public class CobolParser {
             if (moveMatcher.find()) {
                 sourceVariable = moveMatcher.group(1);
                 // 如有全局变量不需要定义的，在这儿加一个判断：!sourceVariable.startsWith()
-                variableSet.add(sourceVariable);
+                variableList.add(sourceVariable);
             }
 
             // 如果找到TO语句，则获取目标变量并生成Java代码
@@ -178,8 +236,8 @@ public class CobolParser {
                 targetVariable = toMatcher.group(1);
                 if (sourceVariable != null && targetVariable != null) {
                     // 检查目标变量是否已经定义，如果未定义则生成变量定义代码
-                    if (!variableSet.contains(targetVariable)) {
-                        variableSet.add(targetVariable);
+                    if (!variableList.contains(targetVariable)) {
+                        variableList.add(targetVariable);
                     }
 
                     String javaCode = targetVariable + " = " + sourceVariable + ";";
@@ -192,13 +250,11 @@ public class CobolParser {
         }
       
       	System.out.println("// 定义变量：");
-      	for (String variable : variableSet) {
-            System.out.println(element);
-          	// 假设需要根据变量名的开头来判断是否需要加注释
-          	if (variable.startsWith("Comment_")) {
-            		String comment = "//" + variable;
-              	System.out.println(comment);
-            }
+      	for (String variable : variableList) {
+          	// 添加注释
+          	String comment = "//" + variable;
+            System.out.println(comment);
+          	// 定义变量
           	String variableDefinition = "String " + variable + ";";
           	System.out.println(variableDefinition);
         }
@@ -219,7 +275,7 @@ public class CobolParser {
 333100         TO exist_error OF after
 ```
 
-需要转为java代码如下： 
+需要转为伪java代码如下： 
 
 ```java
 after.exist_error = before.exist_error; 
